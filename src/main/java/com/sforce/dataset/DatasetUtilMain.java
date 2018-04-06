@@ -149,6 +149,14 @@ public class DatasetUtilMain {
 				{
 					action = args[i];
 				}
+				else if(args[i-1].equalsIgnoreCase("--proxy"))
+				{
+					params.proxy = args[i];
+				}
+				else if(args[i-1].equalsIgnoreCase("--proxyPort"))
+				{
+					params.proxyPort = Integer.parseInt(args[i]);
+				}
 				else if(args[i-1].equalsIgnoreCase("--operation"))
 				{
 					if(args[i]!=null)
@@ -422,7 +430,8 @@ public class DatasetUtilMain {
 		if(params.username!=null || params.sessionId != null)
 		{
 			try {
-				partnerConnection  = DatasetUtils.login(0, params.username, params.password, params.token, params.endpoint, params.sessionId, params.debug);
+				partnerConnection  = DatasetUtils.login(0, params.username, params.password, params.token, params.endpoint,
+														params.sessionId, params.debug, params.proxy, params.proxyPort);
 			} catch (ConnectionException e) {
 				e.printStackTrace();
 				System.exit(-1);

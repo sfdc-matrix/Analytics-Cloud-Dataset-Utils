@@ -43,7 +43,9 @@ public class DatasetUtilParams {
 	String fileEncoding = null;
 	String uploadFormat = null;
 	String Operation = null;
+	String proxy = null;
 	int rowLimit = 0;
+	int proxyPort = 0;
 	String notificationLevel = null; 
 	String notificationEmail = null;
 	boolean useBulkAPI = false;

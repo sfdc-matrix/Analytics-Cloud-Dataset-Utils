@@ -613,6 +613,133 @@ public class DatasetUtils {
 			throw new ConnectionException(e.toString());
 		}
 	}
+
+    /**
+     * Login.
+     *
+     * @param retryCount the retry count
+     * @param username the username
+     * @param password the password
+     * @param token the token
+     * @param endpoint the endpoint
+     * @param sessionId the session id
+     * @param debug the debug
+     * @return the partner connection
+     * @throws ConnectionException the connection exception
+     * @throws MalformedURLException the malformed url exception
+     */
+    public static PartnerConnection login(int retryCount,String username,String password, String token, String endpoint, String sessionId, boolean debug, String proxy, int proxyPort) throws ConnectionException, MalformedURLException  {
+
+        if(sessionId==null)
+        {
+            if (username == null || username.isEmpty()) {
+                throw new IllegalArgumentException("username is required");
+            }
+
+            if (password == null || password.isEmpty()) {
+                throw new IllegalArgumentException("password is required");
+            }
+
+            if (token != null)
+                password = password + token;
+        }
+
+        if (endpoint == null || endpoint.isEmpty()) {
+            endpoint = DatasetUtilConstants.defaultEndpoint;
+        }
+
+        if(sessionId != null && !sessionId.isEmpty())
+        {
+            while(endpoint.toLowerCase().contains("login.salesforce.com") || endpoint.toLowerCase().contains("test.salesforce.com") || endpoint.toLowerCase().contains("test") || endpoint.toLowerCase().contains("prod") || endpoint.toLowerCase().contains("sandbox"))
+            {
+                throw new IllegalArgumentException("ERROR: endpoint must be the actual serviceURL and not the login url");
+            }
+        }
+
+        URL uri = new URL(endpoint);
+        String protocol = uri.getProtocol();
+        String host = uri.getHost();
+        if(protocol == null || !protocol.equalsIgnoreCase("https"))
+        {
+            if(host == null || !(host.toLowerCase().endsWith("internal.salesforce.com") || host.toLowerCase().endsWith("localhost")))
+            {
+                System.out.println("\nERROR: Invalid endpoint. UNSUPPORTED_CLIENT: HTTPS Required in endpoint");
+                System.exit(-1);
+            }
+        }
+
+        if(uri.getPath() == null || uri.getPath().isEmpty() || uri.getPath().equals("/"))
+        {
+            uri = new URL(uri.getProtocol(), uri.getHost(), uri.getPort(), DatasetUtilConstants.defaultSoapEndPointPath);
+        }
+        endpoint = uri.toString();
+
+
+        try {
+            ConnectorConfig config = getConnectorConfig();
+            if(sessionId!=null)
+            {
+                config.setServiceEndpoint(endpoint);
+                config.setSessionId(sessionId);
+            }else
+            {
+                config.setUsername(username);
+                config.setPassword(password);
+                config.setAuthEndpoint(endpoint);
+                if (proxy != null && proxyPort != 0)
+                    config.setProxy(proxy,proxyPort);
+                config.setSessionRenewer(new SessionRenewerImpl(username, password, null, endpoint));
+            }
+
+//			PartnerConnection connection = new PartnerConnection(config);
+            PartnerConnection connection = Connector.newConnection(config);
+
+
+            //Set the clientId
+            CallOptions_element co = new CallOptions_element();
+            co.setClient(DatasetUtilConstants.clientId);
+            connection.__setCallOptions(co);
+
+//			if(sessionId==null)
+//			{
+//				setSessionRenewer(connection);
+//			}
+//
+//		    loginInternal(connection);
+
+            @SuppressWarnings("unused")
+            GetUserInfoResult userInfo = connection.getUserInfo();
+            if(!hasLoggedIn)
+            {
+                System.out.println("\nLogging in ...");
+                System.out.println("Service Endpoint: " + config.getServiceEndpoint());
+                if(debug)
+                    System.out.println("SessionId: " + config.getSessionId());
+//				System.out.println("User id: " + userInfo.getUserName());
+//				System.out.println("User Email: " + userInfo.getUserEmail());
+                System.out.println();
+                hasLoggedIn = true;
+            }
+            return connection;
+        }catch (ConnectionException e) {
+            System.out.println(e.getClass().getCanonicalName());
+            e.printStackTrace();
+            boolean retryError = true;
+            if(e instanceof LoginFault || sessionId != null)
+                retryError = false;
+            if(retryCount<3 && retryError)
+            {
+                retryCount++;
+                try {
+                    Thread.sleep(1000*retryCount);
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
+                return login(retryCount,username, password, null, endpoint, sessionId, debug, proxy, proxyPort);
+            }
+            throw new ConnectionException(e.toString());
+        }
+    }
 	
 //	public static void loginInternal(final PartnerConnection conn) throws ConnectionException {
 //	    final ConnectorConfig cc = conn.getConfig();
